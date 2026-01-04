@@ -1,20 +1,68 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 💇‍♀️ Sistema de Lançamento de Procedimentos — Frontend
 
-# Run and deploy your AI Studio app
+Frontend do sistema de gerenciamento de procedimentos, colaboradores e lançamentos de serviços.  
+A aplicação permite registrar atendimentos, calcular valores automaticamente e visualizar o histórico de forma simples e intuitiva.
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/drive/11DBS_Uw7IFxqMAgXi_U3Ashm8t5PZiOa
+## 🚀 Tecnologias Utilizadas
 
-## Run Locally
+- ⚛️ **React**
+- 🟦 **TypeScript**
+- 🎨 **Tailwind CSS**
+- 🧩 **Lucide Icons**
+- ⚡ **Vite**
+- 🌙 Suporte a **Dark Mode**
 
-**Prerequisites:**  Node.js
+---
+
+## 📦 Funcionalidades
+
+- Cadastro e seleção de **colaboradoras**
+- Seleção dinâmica de **procedimentos**
+- Cálculo automático de valores com base em:
+  - Status do serviço (Fez / Não Fez)
+  - Adicionais
+- Registro de **lançamentos**
+- Visualização de **histórico**
+- Busca por colaboradora, procedimento ou data
+- Exclusão de lançamentos
+- Interface responsiva e moderna
+
+---
+
+## 🖥️ Layout
+
+- UI limpa e intuitiva
+- Feedback visual claro
+- Componentes reutilizáveis
+- Pensado para uso diário em ambiente real
+
+---
+
+## ⚙️ Como rodar o projeto
+
+### 1️⃣ Clone o repositório
+```bash
+git clone <https://github.com/BrunoRodrigues11/salonmanager-app>
+
+### 2️⃣ Acesse a pasta do frontend
+```bash
+cd frontend
+
+### 3️⃣ Instale as dependências
+```bash
+npm install
+# ou
+yarn
+
+### 4️⃣ Configure o ambiente
+```bash
+cp .env.example .env
 
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 5️⃣ Rode o projeto
+```bash
+npm run dev
+# ou
+yarn dev
