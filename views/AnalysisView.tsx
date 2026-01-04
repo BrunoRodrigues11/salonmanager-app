@@ -37,24 +37,38 @@ const StatCard = ({ title, value, subtext, icon: Icon, trend }: any) => (
 const SimpleBarChart = ({ data }: { data: { label: string, value: number, tooltip: string }[] }) => {
   const maxValue = Math.max(...data.map(d => d.value), 1); // Avoid div by zero
 
+  // Lógica para evitar sobreposição de texto:
+  // Se houver mais de 20 itens, mostra a cada 5. Se mais de 10, a cada 2. Senão, todos.
+  const interval = data.length > 20 ? 5 : data.length > 10 ? 2 : 1;
+
   return (
-    <div className="h-64 flex items-end gap-2 pt-8">
-      {data.map((d, i) => (
-        <div key={i} className="flex-1 flex flex-col justify-end group relative h-full">
-          {/* Tooltip on hover */}
-          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none whitespace-nowrap z-10">
-            {d.tooltip}
+    <div className="h-64 flex items-end gap-1 pt-8">
+      {data.map((d, i) => {
+        const showLabel = i % interval === 0;
+        
+        return (
+          <div key={i} className="flex-1 flex flex-col justify-end group relative h-full min-w-0">
+            {/* Tooltip on hover */}
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none whitespace-nowrap z-50 shadow-lg">
+              {d.tooltip}
+            </div>
+            
+            <div 
+              className="w-full bg-primary-500 dark:bg-primary-600 rounded-t-sm hover:bg-primary-400 dark:hover:bg-primary-500 transition-all cursor-pointer min-h-[4px]"
+              style={{ height: `${(d.value / maxValue) * 100}%` }}
+            ></div>
+            
+            {/* Container do Label com altura fixa para alinhamento */}
+            <div className="h-6 mt-2 flex items-center justify-center w-full">
+              {showLabel && (
+                <span className="text-[10px] text-center text-slate-500 dark:text-slate-400 truncate w-full px-0.5">
+                  {d.label}
+                </span>
+              )}
+            </div>
           </div>
-          
-          <div 
-            className="w-full bg-primary-500 dark:bg-primary-600 rounded-t-sm hover:bg-primary-400 dark:hover:bg-primary-500 transition-all cursor-pointer min-h-[4px]"
-            style={{ height: `${(d.value / maxValue) * 100}%` }}
-          ></div>
-          <div className="text-[10px] text-center text-slate-500 dark:text-slate-400 mt-2 truncate w-full">
-            {d.label}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
