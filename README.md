@@ -1,4 +1,4 @@
-# 💇‍♀️ Sistema de Lançamento de Procedimentos — Frontend
+# 💇‍♀️ Sistema SalonManager — Frontend
 
 Frontend do sistema de gerenciamento de procedimentos, colaboradores e lançamentos de serviços.  
 A aplicação permite registrar atendimentos, calcular valores automaticamente e visualizar o histórico de forma simples e intuitiva.
@@ -47,22 +47,17 @@ A aplicação permite registrar atendimentos, calcular valores automaticamente e
 git clone <https://github.com/BrunoRodrigues11/salonmanager-app>
 
 ### 2️⃣ Acesse a pasta do frontend
-```bash
 cd frontend
 
 ### 3️⃣ Instale as dependências
-```bash
 npm install
 # ou
 yarn
 
 ### 4️⃣ Configure o ambiente
-```bash
 cp .env.example .env
 
-
 ### 5️⃣ Rode o projeto
-```bash
 npm run dev
 # ou
 yarn dev
