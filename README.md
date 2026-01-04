@@ -44,7 +44,7 @@ A aplicação permite registrar atendimentos, calcular valores automaticamente e
 
 ### 1️⃣ Clone o repositório
 ```bash
-git clone <https://github.com/BrunoRodrigues11/salonmanager-app>
+git clone https://github.com/BrunoRodrigues11/salonmanager-app```
 
 ### 2️⃣ Acesse a pasta do frontend
 cd frontend

@@ -44,13 +44,16 @@ export const ReportView = () => {
   // Filter Logic
   const filteredRecords = records.filter(r => {
     if (r.collaboratorId !== selectedCollab) return false;
-    
+
+    const dateOnly = r.date.slice(0, 10); // YYYY-MM-DD
+
     if (filterType === 'month') {
-      return r.date.startsWith(filterValue); // YYYY-MM match
+      return dateOnly.startsWith(filterValue); // YYYY-MM
     } else {
-      return r.date === filterValue; // YYYY-MM-DD match
+      return dateOnly === filterValue; // YYYY-MM-DD
     }
   }).sort((a, b) => a.date.localeCompare(b.date));
+
 
   const collabOptions = useMemo(() => 
     collabs.map(c => ({ label: c.name, value: c.id })),
@@ -69,16 +72,19 @@ export const ReportView = () => {
   const groupsMap = new Map<string, DayGroup>();
 
   filteredRecords.forEach(rec => {
-    if (!groupsMap.has(rec.date)) {
-      groupsMap.set(rec.date, { 
-        date: rec.date, 
-        records: [], 
-        totalValue: 0,
-        countDone: 0,
-        countNotDone: 0
-      });
-    }
-    const group = groupsMap.get(rec.date)!;
+      const dayKey = rec.date.slice(0, 10); // YYYY-MM-DD
+
+      if (!groupsMap.has(dayKey)) {
+        groupsMap.set(dayKey, {
+          date: dayKey,
+          records: [],
+          totalValue: 0,
+          countDone: 0,
+          countNotDone: 0
+        });
+      }
+
+    const group = groupsMap.get(dayKey)!;
     group.records.push(rec);
     group.totalValue += rec.calculatedValue;
     
@@ -226,10 +232,10 @@ export const ReportView = () => {
               <div className="text-right">
                 <div className="text-sm text-slate-500">Período de Referência</div>
                 <div className="font-bold text-lg capitalize">
-                  {filterType === 'month' 
-                    ? new Date(filterValue + '-02').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-                    : new Date(filterValue + 'T12:00:00').toLocaleDateString('pt-BR')
-                  }
+                    {filterType === 'month' 
+                      ? new Date(filterValue + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                      : new Date(filterValue + 'T00:00:00').toLocaleDateString('pt-BR')
+                    }
                 </div>
               </div>
             </div>
@@ -251,7 +257,7 @@ export const ReportView = () => {
                     <tr className="bg-slate-100">
                       <td colSpan={4} className="py-2 px-3 font-bold text-primary-900 border-l-4 border-primary-500 flex items-center gap-2">
                         <Calendar size={14} />
-                        {new Date(group.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        {new Date(group.date).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </td>
                     </tr>
                     {group.records.map((rec) => (
@@ -307,10 +313,10 @@ export const ReportView = () => {
                       <tr key={group.date} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-4 pl-2 align-top">
                           <div className="font-bold text-slate-700">
-                            {new Date(group.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                            {new Date(group.date).toLocaleDateString('pt-BR')}
                           </div>
                           <div className="text-xs text-slate-400 capitalize">
-                            {new Date(group.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}
+                            {new Date(group.date).toLocaleDateString('pt-BR', { weekday: 'long' })}
                           </div>
                         </td>
                         <td className="py-4 align-top">
