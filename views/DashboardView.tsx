@@ -271,7 +271,7 @@ export const DashboardView = () => {
                     <div className="flex items-center gap-1">
                       <span>{getCollabName(r.collaboratorId)}</span>
                       <span>•</span>
-                      <span>{new Date(r.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                      <span>{new Date(r.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
                     </div>
                     <span className={clsx(
                       "px-1.5 py-0.5 rounded",
