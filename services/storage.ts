@@ -63,6 +63,17 @@ export const storageService = {
      console.warn("Delete procedure not implemented in backend snippet");
   },
 
+  updateProcedure: async (id: string, proc: ProcedureInput): Promise<Procedure> => {
+    const res = await fetch(`${API_URL}/procedures/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(proc)
+    });
+
+    return handleResponse(res);
+  },
+
+
   // --- Prices ---
   getPrices: async (): Promise<PriceConfig[]> => {
     const res = await fetch(`${API_URL}/prices`);

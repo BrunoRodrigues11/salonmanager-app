@@ -245,11 +245,19 @@ export const ProcedureView = () => {
   const save = async (p: Partial<Procedure>) => {
     if (!p.name) return;
     setLoading(true);
-    await storageService.createProcedure({
-      name: p.name,
-      category: p.category || ProcedureCategory.MANICURE,
-      active: p.active !== false
-    });
+    if (p.id) {
+      await storageService.updateProcedure(p.id, {
+        name: p.name,
+        category: p.category || ProcedureCategory.MANICURE,
+        active: p.active !== false
+      });
+    } else {
+      await storageService.createProcedure({
+        name: p.name,
+        category: p.category || ProcedureCategory.MANICURE,
+        active: p.active !== false
+      });
+    }
     await loadData();
     setEditing(null);
     setLoading(false);
@@ -276,6 +284,14 @@ export const ProcedureView = () => {
               <select className="w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded p-2 text-slate-900 dark:text-white" value={editing.category} onChange={e => setEditing({...editing, category: e.target.value as ProcedureCategory})}>
                 {Object.values(ProcedureCategory).map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+            </div>
+            <div className="flex items-center gap-2">
+            <input
+                type="checkbox"
+                checked={editing.active !== false}
+                onChange={e => setEditing({ ...editing, active: e.target.checked })}
+              />
+              <label>Ativo</label>
             </div>
             <div className="flex gap-2 items-end">
               <Button onClick={() => save(editing)} disabled={loading}>Salvar</Button>
@@ -306,7 +322,7 @@ export const ProcedureView = () => {
                   </span>
                 </td>
                 <td className="p-4 text-right flex justify-end gap-2">
-                  <button onClick={() => setEditing(p)}><Edit2 size={16} className="text-primary-600 dark:text-primary-400" /></button>
+                  <button onClick={() => setEditing({ ...p })}><Edit2 size={16} className="text-primary-600 dark:text-primary-400" /></button>
                 </td>
               </tr>
             ))}
