@@ -91,6 +91,15 @@ export const storageService = {
   
   savePrices: async (data: PriceConfig[]) => { console.warn("Use createPrice"); },
 
+  updatePrice: async (id: string,price: PriceConfigInput): Promise<PriceConfig> => {
+    const res = await fetch(`${API_URL}/prices/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(price)
+    });
+    return handleResponse(res);
+  },
+
   // --- Records ---
   getRecords: async (): Promise<ServiceRecord[]> => {
     const res = await fetch(`${API_URL}/records`);
@@ -111,7 +120,7 @@ export const storageService = {
   },
 
   saveRecords: async (data: ServiceRecord[]) => { console.warn("Use createRecord"); },
-
+  
   // --- Local Settings (Theme/Auth still local) ---
   getTheme: () => localStorage.getItem('salon_theme') as 'light' | 'dark' || 'light',
   saveTheme: (theme: 'light' | 'dark') => localStorage.setItem('salon_theme', theme),

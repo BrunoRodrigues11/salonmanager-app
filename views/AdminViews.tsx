@@ -273,7 +273,7 @@ export const ProcedureView = () => {
       </div>
 
       {editing && (
-        <Card title="Gerenciar Procedimento">
+        <Card title={editing.id ? 'Editar Procedimento' : 'Novo Procedimento'}>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="block text-sm font-medium mb-1 dark:text-slate-300">Nome</label>
@@ -286,12 +286,12 @@ export const ProcedureView = () => {
               </select>
             </div>
             <div className="flex items-center gap-2">
-            <input
-                type="checkbox"
-                checked={editing.active !== false}
-                onChange={e => setEditing({ ...editing, active: e.target.checked })}
-              />
-              <label>Ativo</label>
+              <input
+                  type="checkbox"
+                  checked={editing.active !== false}
+                  onChange={e => setEditing({ ...editing, active: e.target.checked })}
+                />
+                <label>Ativo</label>
             </div>
             <div className="flex gap-2 items-end">
               <Button onClick={() => save(editing)} disabled={loading}>Salvar</Button>
@@ -312,7 +312,7 @@ export const ProcedureView = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-            {procs.map(p => (
+            {procs.sort((a, b) => a.name.localeCompare(b.name)).map(p => (
               <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                 <td className="p-4 font-medium text-slate-900 dark:text-white">{p.name}</td>
                 <td className="p-4 text-slate-500 dark:text-slate-400">{p.category}</td>
@@ -353,13 +353,23 @@ export const PriceView = () => {
   const save = async (p: Partial<PriceConfig>) => {
     if (!p.procedureId) return;
     setLoading(true);
-    await storageService.createPrice({
-      procedureId: p.procedureId,
-      valueDone: p.valueDone || 0,
-      valueNotDone: p.valueNotDone || 0,
-      valueAdditional: p.valueAdditional || 0,
-      active: true
-    });
+    if (p.id) {
+      await storageService.updatePrice(p.id, {
+        procedureId: p.procedureId,
+        valueDone: p.valueDone || 0,
+        valueNotDone: p.valueNotDone || 0,
+        valueAdditional: p.valueAdditional || 0,
+        active: true
+      });
+    } else {
+      await storageService.createPrice({
+        procedureId: p.procedureId,
+        valueDone: p.valueDone || 0,
+        valueNotDone: p.valueNotDone || 0,
+        valueAdditional: p.valueAdditional || 0,
+        active: true
+      });
+    }
     await loadData();
     setEditing(null);
     setLoading(false);
@@ -398,16 +408,22 @@ export const PriceView = () => {
       </div>
 
       {editing && (
-        <Card title="Configurar Valores">
+        <Card title={editing.id ? "Editar Valores" : "Configurar Valores"}>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="md:col-span-2 lg:col-span-1">
               <label className="block text-sm font-medium mb-1 dark:text-slate-300">Procedimento</label>
-              <SearchSelect
-                options={procedureOptions}
-                value={editing.procedureId || ''}
-                onChange={val => setEditing({...editing, procedureId: val})}
-                placeholder="Selecione o procedimento..."
-              />
+              {editing.id ? (
+                 <div className="p-2 bg-slate-100 dark:bg-slate-700 rounded text-slate-700 dark:text-slate-300">
+                    {getProcedureName(editing.procedureId!)}
+                 </div>
+              ) : (
+                <SearchSelect
+                  options={procedureOptions}
+                  value={editing.procedureId || ''}
+                  onChange={val => setEditing({...editing, procedureId: val})}
+                  placeholder="Selecione o procedimento..."
+                />
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1 dark:text-slate-300">Valor (Fez)</label>
@@ -441,14 +457,14 @@ export const PriceView = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-            {prices.map(p => (
+            {prices.sort((a, b) => getProcedureName(a.procedureId).localeCompare(getProcedureName(b.procedureId))).map(p => (
               <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                 <td className="p-4 font-medium text-slate-900 dark:text-white">{getProcedureName(p.procedureId)}</td>
                 <td className="p-4 font-mono text-green-600 dark:text-green-400">R$ {p.valueDone.toFixed(2)}</td>
                 <td className="p-4 font-mono text-slate-500 dark:text-slate-400">R$ {p.valueNotDone.toFixed(2)}</td>
                 <td className="p-4 font-mono text-primary-600 dark:text-primary-400">+ R$ {p.valueAdditional.toFixed(2)}</td>
                 <td className="p-4 text-right">
-                  <button onClick={() => setEditing(p)} className="p-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded"><Edit2 size={16} /></button>
+                  <button onClick={() => setEditing({ ...p })} className="p-2 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded"><Edit2 size={16} /></button>
                 </td>
               </tr>
             ))}
