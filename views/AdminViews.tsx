@@ -80,8 +80,13 @@ export const CollaboratorView = () => {
     setLoading(true);
     try {
       if (c.id) {
-        // Update logic not fully implemented in API snippet, treating as create for now or assume existing
-        alert("Edição não implementada no snippet da API. Apenas criação.");
+        // Update
+        await storageService.updateCollaborator(c.id, {
+          name: c.name,
+          role: c.role || Role.BOTH,
+          active: c.active !== false,
+          allowedProcedureIds: c.allowedProcedureIds || []
+        });
       } else {
         // Create
         await storageService.createCollaborator({
@@ -213,6 +218,7 @@ export const CollaboratorView = () => {
                   <span className="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">{c.role}</span>
                 </div>
                 <div className="flex gap-1">
+                  <button onClick={() => setEditing(c)} className="p-2 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 rounded"><Edit2 size={16} /></button>
                   <button onClick={() => remove(c.id)} className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"><Trash2 size={16} /></button>
                 </div>
               </div>

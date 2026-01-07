@@ -41,6 +41,15 @@ export const storageService = {
     await fetch(`${API_URL}/collaborators/${id}`, { method: 'DELETE' });
   },
 
+  updateCollaborator: async (id: string, collab: CollaboratorInput): Promise<Collaborator> => {
+    const res = await fetch(`${API_URL}/collaborators/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collab)
+    });
+    return handleResponse(res);
+  },
+  
   // --- Procedures ---
   getProcedures: async (): Promise<Procedure[]> => {
     const res = await fetch(`${API_URL}/procedures`);
