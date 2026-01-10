@@ -70,7 +70,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
           <div className="mt-6 text-center">
             <p className="text-xs text-slate-400 dark:text-slate-500">
-              {/* Dica: A senha padrão é <strong>1234</strong> */}
+             Versão: <strong>1.0.1</strong>
             </p>
           </div>
         </div>

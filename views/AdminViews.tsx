@@ -1,10 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Save, X, Check, Inbox, Users, Scissors, DollarSign, Upload, FileSpreadsheet, Download, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import { 
-  Collaborator, Procedure, PriceConfig, Role, ProcedureCategory, 
-  ServiceStatus 
-} from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit2, Trash2, Users} from 'lucide-react';
+import { Collaborator, Procedure, PriceConfig, Role, ProcedureCategory } from '../types';
 import { storageService } from '../services/storage';
 import { SearchSelect } from '../components/ui/SearchSelect';
 import clsx from 'clsx';
@@ -46,16 +42,10 @@ const EmptyState = ({ icon: Icon, title, description, action }: any) => (
   </div>
 );
 
-// --- Import Modal (Omitted for brevity as logic remains similar but implementation needs async adaptation if used) ---
-// Simplified for this response to focus on API integration
-const ImportModal = ({ isOpen, onClose }: any) => isOpen ? <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center text-white">Importação em massa requer adaptação da API.</div> : null;
-
-
 // --- Collaborators View ---
 export const CollaboratorView = () => {
   const [collabs, setCollabs] = useState<Collaborator[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
-  // Use Partial for editing because ID might be missing on new items
   const [editing, setEditing] = useState<Partial<Collaborator> | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -122,14 +112,11 @@ export const CollaboratorView = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Colaboradoras</h1>
         <div className="flex gap-2">
-          {/* Import disabled for now */}
           <Button onClick={() => setEditing({ name: '', role: Role.BOTH, active: true, allowedProcedureIds: [] })}>
             <Plus size={16} /> Nova
           </Button>
         </div>
       </div>
-
-      <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} />
 
       {editing && (
         <Card title={editing.id ? 'Editar Colaboradora' : 'Nova Colaboradora'}>
