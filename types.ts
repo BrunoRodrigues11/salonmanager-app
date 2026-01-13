@@ -61,6 +61,6 @@ export interface ServiceRecord {
   createdAt: string; // Mudado de number para string (ISO date do SQL)
 }
 
-export type ServiceRecordInput = Omit<ServiceRecord, 'id' | 'createdAt'>;
+export type ServiceRecordInput = Omit<ServiceRecord, 'id' | 'createdAt' | 'calculatedValue'>;
 
-export const EXTRA_OPTIONS = ['Limpeza', 'São Miguel', 'Toalhas'];
+export const EXTRA_OPTIONS = ['Limpeza', 'São Miguel', 'Toalhas', 'Limpeza Alicates'];

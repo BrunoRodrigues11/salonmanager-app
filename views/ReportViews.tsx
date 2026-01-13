@@ -110,7 +110,7 @@ export const ReportView = () => {
     setGenerating(true);
     try {
       const canvas = await html2canvas(reportRef.current, {
-        scale: 2, // Higher quality
+        scale: 3, // Higher quality
         backgroundColor: '#ffffff',
       });
       const link = document.createElement('a');

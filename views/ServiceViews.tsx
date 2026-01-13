@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Calendar, CheckCircle, XCircle, Search, ClipboardX, X, Clock, User, Scissors, Tag, FileText, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Calendar, CheckCircle, XCircle, Search, ClipboardX, X } from 'lucide-react';
 import { 
   Collaborator, Procedure, PriceConfig, ServiceRecord, ServiceStatus, EXTRA_OPTIONS 
 } from '../types';
 import { storageService } from '../services/storage';
 import { SearchSelect } from '../components/ui/SearchSelect';
 import clsx from 'clsx';
+
+// Defina aqui as mesmas exceções do Backend para a estimativa visual bater
+const FREE_EXTRAS = ['São Miguel'];
 
 function formatDateBR(date: string | Date) {
   return new Date(date).toLocaleDateString('pt-BR');
@@ -24,34 +27,41 @@ export const ServiceEntryView = () => {
   const [status, setStatus] = useState<ServiceStatus>(ServiceStatus.DONE);
   const [extras, setExtras] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
-  const [calculatedValue, setCalculatedValue] = useState(0);
+  
+  // O calculatedValue (State) foi removido. Agora usamos apenas uma variável derivada para visualização.
 
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      const [c, p, pr] = await Promise.all([
-        storageService.getCollaborators(),
-        storageService.getProcedures(),
-        storageService.getPrices()
-      ]);
-      setCollabs(c);
-      setProcedures(p);
-      setPrices(pr);
-      setLoading(false);
+      try {
+        const [c, p, pr] = await Promise.all([
+          storageService.getCollaborators(),
+          storageService.getProcedures(),
+          storageService.getPrices()
+        ]);
+        setCollabs(c);
+        setProcedures(p);
+        setPrices(pr);
+      } catch (error) {
+        console.error("Erro ao carregar dados", error);
+      } finally {
+        setLoading(false);
+      }
     };
     init();
   }, []);
 
+  // Filtro Visual de Procedimentos (UX)
   const availableProcedures = useMemo(() => {
     if (!selectedCollab) return [];
     const collab = collabs.find(c => c.id === selectedCollab);
     if (!collab) return [];
     
-    // Check if property exists (it comes from a join in API)
-    if (!collab.allowedProcedureIds) return procedures.filter(p => p.active);
+    if (!collab.allowedProcedureIds || collab.allowedProcedureIds.length === 0) 
+        return procedures.filter(p => p.active);
 
     return procedures
-      .filter(p => collab.allowedProcedureIds.includes(p.id))
+      .filter(p => collab.allowedProcedureIds?.includes(p.id))
       .filter(p => p.active);
   }, [selectedCollab, collabs, procedures]);
 
@@ -63,20 +73,26 @@ export const ServiceEntryView = () => {
     availableProcedures.map(p => ({ label: p.name, value: p.id, subLabel: p.category })),
   [availableProcedures]);
 
-  useEffect(() => {
-    if (!selectedProc) {
-      setCalculatedValue(0);
-      return;
-    }
+  // --- CÁLCULO VISUAL (ESTIMATIVA) ---
+  // Replica a lógica do backend apenas para o usuário ter noção do valor
+  const estimatedValue = useMemo(() => {
+    if (!selectedProc) return 0;
+    
     const priceConfig = prices.find(p => p.procedureId === selectedProc);
-    if (!priceConfig) {
-      setCalculatedValue(0);
-      return;
-    }
+    if (!priceConfig) return 0;
 
-    let val = status === ServiceStatus.DONE ? priceConfig.valueDone : priceConfig.valueNotDone;
-    if (extras.length > 0) val += priceConfig.valueAdditional;
-    setCalculatedValue(val);
+    let val = status === ServiceStatus.DONE 
+        ? Number(priceConfig.valueDone) 
+        : Number(priceConfig.valueNotDone);
+
+    if (extras.length > 0) {
+       // Filtra visualmente os itens gratuitos para a estimativa ficar correta
+       const payableExtras = extras.filter(e => !FREE_EXTRAS.includes(e));
+       // Multiplica pela quantidade
+       val += (Number(priceConfig.valueAdditional) * payableExtras.length);
+    }
+    
+    return val;
   }, [selectedProc, status, extras, prices]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,16 +108,18 @@ export const ServiceEntryView = () => {
         status,
         extras,
         notes,
-        calculatedValue,
       });
 
+      // Reset do formulário
       setSelectedProc('');
       setExtras([]);
       setNotes('');
       setStatus(ServiceStatus.DONE);
       alert("Lançamento salvo com sucesso!");
-    } catch (err) {
-      alert("Erro ao salvar lançamento.");
+    } catch (err: any) {
+      // Se o backend retornar erro de regra de negócio (ex: preço não configurado), mostramos aqui
+      const msg = err.message || "Erro ao salvar lançamento.";
+      alert(msg);
     } finally {
       setLoading(false);
     }
@@ -205,9 +223,9 @@ export const ServiceEntryView = () => {
             />
           </div>
 
-          <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-            <div className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">Valor Calculado</div>
-            <div className="text-3xl font-bold text-slate-900 dark:text-white">R$ {calculatedValue.toFixed(2)}</div>
+          <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
+            <div className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">Estimativa</div>
+            <div className="text-3xl font-bold text-slate-900 dark:text-white">R$ {estimatedValue.toFixed(2)}</div>
           </div>
 
           <button type="submit" disabled={loading} className="w-full bg-primary-600 dark:bg-primary-700 text-white py-3 rounded-lg font-bold hover:bg-primary-700 dark:hover:bg-primary-600 shadow-md transition-colors disabled:opacity-50">
@@ -219,7 +237,7 @@ export const ServiceEntryView = () => {
   );
 };
 
-// ... RecordDetailModal component remains same, omitted for brevity ...
+// ... RecordDetailModal ... 
 const RecordDetailModal = ({ record, onClose, onDelete, getCollabName, getProcName }: any) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-xl shadow-2xl p-6 border border-slate-200 dark:border-slate-700">
@@ -229,7 +247,7 @@ const RecordDetailModal = ({ record, onClose, onDelete, getCollabName, getProcNa
          </div>
          <p className="dark:text-slate-300">Colaboradora: {getCollabName(record.collaboratorId)}</p>
          <p className="dark:text-slate-300">Procedimento: {getProcName(record.procedureId)}</p>
-         <p className="dark:text-slate-300">Valor: R$ {record.calculatedValue}</p>
+         <p className="dark:text-slate-300">Valor Final: R$ {Number(record.calculatedValue).toFixed(2)}</p>
          <div className="mt-4 flex justify-end">
             <button onClick={() => { onDelete(record.id); onClose(); }} className="text-red-500 flex gap-2"><Trash2 size={16}/> Excluir</button>
          </div>
@@ -237,6 +255,7 @@ const RecordDetailModal = ({ record, onClose, onDelete, getCollabName, getProcNa
   </div>
 );
 
+// ... HistoryView ...
 export const HistoryView = () => {
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [collabs, setCollabs] = useState<Collaborator[]>([]);
@@ -247,20 +266,24 @@ export const HistoryView = () => {
 
   const loadData = async () => {
     setLoading(true);
-    const [r, c, p] = await Promise.all([
-      storageService.getRecords(),
-      storageService.getCollaborators(),
-      storageService.getProcedures()
-    ]);
-    setRecords(r);
-    setCollabs(c);
-    setProcedures(p);
-    setLoading(false);
+    try {
+        const [r, c, p] = await Promise.all([
+        storageService.getRecords(),
+        storageService.getCollaborators(),
+        storageService.getProcedures()
+        ]);
+        setRecords(r);
+        setCollabs(c);
+        setProcedures(p);
+    } finally {
+        setLoading(false);
+    }
   };
 
   useEffect(() => { loadData(); }, []);
 
   const deleteRecord = async (id: string) => {
+    if(!confirm('Excluir este lançamento?')) return;
     await storageService.deleteRecord(id);
     loadData();
   };
@@ -281,6 +304,9 @@ export const HistoryView = () => {
 
   return (
     <div className="space-y-6">
+      {/* ... (O restante do layout do HistoryView permanece idêntico, 
+              apenas certifique-se de usar Number(rec.calculatedValue).toFixed(2) 
+              caso o backend retorne string) ... */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
           <Calendar className="text-primary-600 dark:text-primary-400" size={28} /> 
@@ -336,12 +362,13 @@ export const HistoryView = () => {
               <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t dark:border-slate-700 md:border-t-0 pt-3 md:pt-0 mt-3 md:mt-0">
                 <div className="text-right">
                   <div className="text-xs text-slate-400 uppercase tracking-wider">Valor</div>
-                  <div className="font-bold text-lg text-slate-800 dark:text-white">R$ {rec.calculatedValue.toFixed(2)}</div>
+                  {/* Garante que converte para Number antes de toFixed, caso venha string do back */}
+                  <div className="font-bold text-lg text-slate-800 dark:text-white">R$ {Number(rec.calculatedValue).toFixed(2)}</div>
                 </div>
                 <button 
                   onClick={(e) => {
                     e.stopPropagation(); 
-                    if(confirm('Excluir?')) deleteRecord(rec.id);
+                    deleteRecord(rec.id);
                   }}
                   className="p-2 text-slate-400 hover:text-red-600"
                 >

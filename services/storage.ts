@@ -3,7 +3,8 @@ import {
   CollaboratorInput, ProcedureInput, PriceConfigInput, ServiceRecordInput 
 } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL;
+// Garante que não venha undefined, ou usa localhost como último recurso (ou lança erro)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 /* Wrapper genérico para chamadas API para evitar repetição de código. */
 async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
