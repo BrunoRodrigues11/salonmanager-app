@@ -6,7 +6,7 @@ import { DashboardView } from './views/DashboardView';
 import { ReportView } from './views/ReportViews';
 import { AnalysisView } from './views/AnalysisView';
 import { LoginView } from './views/LoginView';
-import { seedDatabase, storageService } from './services/storage';
+import { storageService } from './services/storage'; 
 import { themeService } from './services/theme';
 
 export default function App() {
@@ -15,10 +15,7 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  useEffect(() => {
-    // Initialize DB with seed data if empty
-    seedDatabase();
-    
+  useEffect(() => {  
     // Load theme (Dark Mode)
     const savedTheme = storageService.getTheme();
     setIsDarkMode(savedTheme === 'dark');
@@ -51,7 +48,8 @@ export default function App() {
   };
 
   const handleLogin = () => {
-    storageService.login();
+    // O componente LoginView já fez a autenticação na API.
+    // Confirma que o estado mudou.
     setIsAuthenticated(true);
   };
 

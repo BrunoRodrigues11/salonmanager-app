@@ -63,4 +63,9 @@ export interface ServiceRecord {
 
 export type ServiceRecordInput = Omit<ServiceRecord, 'id' | 'createdAt' | 'calculatedValue'>;
 
+export interface LoginResponse {
+  auth: boolean;
+  token: string;
+}
+
 export const EXTRA_OPTIONS = ['Limpeza', 'São Miguel', 'Toalhas', 'Limpeza Alicates'];

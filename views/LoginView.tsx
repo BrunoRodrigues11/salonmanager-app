@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Lock, ArrowRight, Scissors } from 'lucide-react';
+import { Lock, ArrowRight, Scissors, Loader2 } from 'lucide-react'; 
+import { storageService } from '../services/storage'; 
 
 interface LoginViewProps {
   onLogin: () => void;
@@ -8,15 +9,32 @@ interface LoginViewProps {
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  
+  // --- CORREÇÃO: Faltava declarar este estado ---
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Senha simples fixa para demonstração
-    if (password === '021202') {
-      onLogin();
-    } else {
-      setError('Senha incorreta. Tente novamente.');
-      setPassword('');
+    
+    // Evita submissão vazia
+    if (!password.trim()) return;
+
+    setLoading(true);
+    setError(''); // Limpa erros anteriores
+
+    try {
+        const success = await storageService.login(password);
+        
+        if (success) {
+            onLogin(); 
+        } else {
+            setError('Código de acesso incorreto.');
+            setPassword('');
+        }
+    } catch (err) {
+        setError('Erro de conexão com o servidor. Tente novamente.');
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -43,7 +61,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 </div>
                 <input
                   type="password"
-                  className="block w-full pl-10 pr-3 py-3 border border-slate-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition duration-150 ease-in-out sm:text-sm"
+                  disabled={loading} // Bloqueia input enquanto carrega
+                  className="block w-full pl-10 pr-3 py-3 border border-slate-300 dark:border-slate-600 rounded-lg leading-5 bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition duration-150 ease-in-out sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Digite o código de acesso"
                   value={password}
                   onChange={(e) => {
@@ -54,7 +73,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 />
               </div>
               {error && (
-                <p className="mt-2 text-sm text-red-600 dark:text-red-400 animate-pulse">
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400 animate-pulse bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-200 dark:border-red-800">
                   {error}
                 </p>
               )}
@@ -62,9 +81,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
             <button
               type="submit"
-              className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+              disabled={loading} // Bloqueia botão enquanto carrega
+              className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Entrar no Sistema <ArrowRight size={16} />
+              {loading ? (
+                <>
+                  <Loader2 className="animate-spin" size={20} />
+                  Verificando...
+                </>
+              ) : (
+                <>
+                  Entrar no Sistema <ArrowRight size={16} />
+                </>
+              )}
             </button>
           </form>
 
