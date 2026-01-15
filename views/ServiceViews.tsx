@@ -7,6 +7,12 @@ import { storageService } from '../services/storage';
 import { SearchSelect } from '../components/ui/SearchSelect';
 import clsx from 'clsx';
 
+const formatDateSimple = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const [year, month, day] = dateStr.split('T')[0].split('-');
+    return `${day}/${month}/${year}`; // Apenas Dia/Mês para economizar espaço
+};
+
 // Defina aqui as mesmas exceções do Backend para a estimativa visual bater
 const FREE_EXTRAS = ['São Miguel'];
 
@@ -344,7 +350,7 @@ export const HistoryView = () => {
               <div className="flex-1">
                 <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-1">
                   <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300 font-mono">
-                    {formatDateBR(rec.date)}
+                    {formatDateSimple(rec.date)}
                   </span>
                   <span>•</span>
                   <span className="font-medium text-slate-700 dark:text-slate-200">{getCollabName(rec.collaboratorId)}</span>
