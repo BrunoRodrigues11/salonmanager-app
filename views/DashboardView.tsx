@@ -7,6 +7,22 @@ import { storageService } from '../services/storage';
 import { Collaborator, Procedure, ServiceRecord, ServiceStatus } from '../types';
 import clsx from 'clsx';
 
+// --- HELPERS PARA DATA ---
+// Garante que pegamos o Mês Local do usuário, não o UTC
+const getCurrentMonthISO = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+};
+
+// Formata data sem sofrer com fuso horário (D-1)
+const formatDateSimple = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const [year, month, day] = dateStr.split('T')[0].split('-');
+    return `${day}/${month}`; // Apenas Dia/Mês para economizar espaço
+};
+
 // ... KPICard and ProgressBar components remain same ...
 const KPICard = ({ title, value, subtext, icon: Icon, colorClass }: any) => (
   <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex items-start justify-between transition-colors">
@@ -26,7 +42,7 @@ const ProgressBar = ({ label, value, total, color = "bg-primary-600" }: any) => 
   return (
     <div className="mb-3">
       <div className="flex justify-between text-sm mb-1">
-        <span className="font-medium text-slate-700 dark:text-slate-300">{label}</span>
+        <span className="font-medium text-slate-700 dark:text-slate-300 truncate w-32">{label}</span>
         <span className="text-slate-500 dark:text-slate-400">{value} ({percent}%)</span>
       </div>
       <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5">
@@ -37,7 +53,8 @@ const ProgressBar = ({ label, value, total, color = "bg-primary-600" }: any) => 
 };
 
 export const DashboardView = () => {
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  // Ajuste 1: Pega o mês local correto
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonthISO()); 
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [collabs, setCollabs] = useState<Collaborator[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
@@ -60,19 +77,18 @@ export const DashboardView = () => {
     load();
   }, []);
 
-  // ... Rest of logic remains identical, just need to render loading state ...
-  
   const monthRecords = useMemo(() => {
     return records.filter(r => r.date.startsWith(currentMonth));
   }, [records, currentMonth]);
 
+  // Ajuste 2: Uso de Number() para garantir soma matemática correta
   const totalValue = monthRecords
     .filter(r => r.status === ServiceStatus.DONE)
-    .reduce((acc, r) => acc + r.calculatedValue, 0);
+    .reduce((acc, r) => acc + Number(r.calculatedValue), 0);
 
   const totalLostValue = monthRecords
     .filter(r => r.status === ServiceStatus.NOT_DONE)
-    .reduce((acc, r) => acc + r.calculatedValue, 0);
+    .reduce((acc, r) => acc + Number(r.calculatedValue), 0);
 
   const countDone = monthRecords.filter(r => r.status === ServiceStatus.DONE).length;
   const countNotDone = monthRecords.filter(r => r.status === ServiceStatus.NOT_DONE).length;
@@ -94,7 +110,8 @@ export const DashboardView = () => {
     monthRecords.forEach(r => {
       if (r.status === ServiceStatus.DONE) {
         const cName = collabs.find(c => c.id === r.collaboratorId)?.name || 'Desc.';
-        values[cName] = (values[cName] || 0) + r.calculatedValue;
+        // Ajuste 2: Number() aqui também
+        values[cName] = (values[cName] || 0) + Number(r.calculatedValue);
       }
     });
     return Object.entries(values).sort(([, a], [, b]) => b - a);
@@ -208,7 +225,7 @@ export const DashboardView = () => {
             <div className="p-6 border-b border-slate-50 dark:border-slate-700">
               <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                 <TrendingUp size={18} className="text-yellow-500" />
-                Ranking de Faturamento ({new Date(currentMonth + '-02').toLocaleDateString('pt-BR', { month: 'long' })})
+                Ranking de Faturamento ({new Date(currentMonth + '-02T12:00:00').toLocaleDateString('pt-BR', { month: 'long' })})
               </h3>
             </div>
             <table className="w-full text-sm">
@@ -265,13 +282,14 @@ export const DashboardView = () => {
                 <div key={r.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                   <div className="flex justify-between items-start mb-1">
                     <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">{getProcName(r.procedureId)}</span>
-                    <span className="font-mono text-xs font-bold text-slate-600 dark:text-slate-400">R$ {r.calculatedValue.toFixed(2)}</span>
+                    <span className="font-mono text-xs font-bold text-slate-600 dark:text-slate-400">R$ {Number(r.calculatedValue).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
                     <div className="flex items-center gap-1">
                       <span>{getCollabName(r.collaboratorId)}</span>
                       <span>•</span>
-                      <span>{new Date(r.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                      {/* Ajuste 3: Data segura sem D-1 */}
+                      <span>{formatDateSimple(r.date)}</span>
                     </div>
                     <span className={clsx(
                       "px-1.5 py-0.5 rounded",

@@ -1,9 +1,23 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import html2canvas from 'html2canvas';
-import { Download, Search, AlertCircle, Calendar, FileText, List } from 'lucide-react';
+import { Download, Search, AlertCircle, Calendar, FileText, List, Filter } from 'lucide-react';
 import { Collaborator, ServiceRecord, Procedure, ServiceStatus } from '../types';
 import { storageService } from '../services/storage';
 import { SearchSelect } from '../components/ui/SearchSelect';
+
+// --- HELPERS DE DATA (Anti-Fuso Horário) ---
+// Transforma "2026-01-15" em "15/01/2026" (Pura string, sem timezone)
+const formatDateString = (isoDate: string) => {
+  if (!isoDate) return '-';
+  const [year, month, day] = isoDate.split('T')[0].split('-');
+  return `${day}/${month}/${year}`;
+};
+
+// Pega o nome do dia da semana e mês de forma segura
+// Usamos T12:00:00 para garantir que caia no meio do dia e não vire D-1
+const getSecureDateObject = (dateString: string) => {
+  return new Date(`${dateString.split('T')[0]}T12:00:00`);
+};
 
 export const ReportView = () => {
   const [collabs, setCollabs] = useState<Collaborator[]>([]);
@@ -33,7 +47,7 @@ export const ReportView = () => {
         setProcs(p);
         setRecords(r);
       } catch (e) {
-        console.error("Erro ao carregar dados para relatórios:", e);
+        console.error("Erro ao carregar dados:", e);
       } finally {
         setLoadingData(false);
       }
@@ -41,38 +55,34 @@ export const ReportView = () => {
     load();
   }, []);
 
-  // Filter Logic
-  const filteredRecords = records.filter(r => {
-    if (r.collaboratorId !== selectedCollab) return false;
+  // --- 1. Lógica de Filtro (Otimizada com useMemo) ---
+  const filteredRecords = useMemo(() => {
+    return records.filter(r => {
+      if (r.collaboratorId !== selectedCollab) return false;
+      const dateOnly = r.date.slice(0, 10); // YYYY-MM-DD
 
-    const dateOnly = r.date.slice(0, 10); // YYYY-MM-DD
+      if (filterType === 'month') {
+        return dateOnly.startsWith(filterValue);
+      } else {
+        return dateOnly === filterValue;
+      }
+    }).sort((a, b) => a.date.localeCompare(b.date));
+  }, [records, selectedCollab, filterType, filterValue]);
 
-    if (filterType === 'month') {
-      return dateOnly.startsWith(filterValue); // YYYY-MM
-    } else {
-      return dateOnly === filterValue; // YYYY-MM-DD
-    }
-  }).sort((a, b) => a.date.localeCompare(b.date));
+  // --- 2. Lógica de Agrupamento (Otimizada com useMemo) ---
+  const groupedRecords = useMemo(() => {
+    type DayGroup = {
+      date: string;
+      records: ServiceRecord[];
+      totalValue: number;
+      countDone: number;
+      countNotDone: number;
+    };
 
+    const groupsMap = new Map<string, DayGroup>();
 
-  const collabOptions = useMemo(() => 
-    collabs.map(c => ({ label: c.name, value: c.id })),
-  [collabs]);
-
-  // --- Grouping Logic ---
-  type DayGroup = {
-    date: string;
-    records: ServiceRecord[];
-    totalValue: number;
-    countDone: number;
-    countNotDone: number;
-  };
-
-  const groupedRecords: DayGroup[] = [];
-  const groupsMap = new Map<string, DayGroup>();
-
-  filteredRecords.forEach(rec => {
-      const dayKey = rec.date.slice(0, 10); // YYYY-MM-DD
+    filteredRecords.forEach(rec => {
+      const dayKey = rec.date.slice(0, 10);
 
       if (!groupsMap.has(dayKey)) {
         groupsMap.set(dayKey, {
@@ -84,35 +94,46 @@ export const ReportView = () => {
         });
       }
 
-    const group = groupsMap.get(dayKey)!;
-    group.records.push(rec);
-    group.totalValue += rec.calculatedValue;
-    
-    if (rec.status === ServiceStatus.DONE) {
-      group.countDone++;
-    } else {
-      group.countNotDone++;
-    }
-  });
+      const group = groupsMap.get(dayKey)!;
+      group.records.push(rec);
+      
+      // Garante conversão para número
+      group.totalValue += Number(rec.calculatedValue);
+      
+      if (rec.status === ServiceStatus.DONE) {
+        group.countDone++;
+      } else {
+        group.countNotDone++;
+      }
+    });
 
-  // Convert Map to Array and Sort by Date
-  Array.from(groupsMap.values())
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .forEach(g => groupedRecords.push(g));
+    return Array.from(groupsMap.values())
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [filteredRecords]);
 
-  // --- Global Totals ---
-  const totalValue = filteredRecords.reduce((acc, r) => acc + r.calculatedValue, 0);
-  const totalDone = filteredRecords.filter(r => r.status === ServiceStatus.DONE).length;
-  const totalNotDone = filteredRecords.filter(r => r.status === ServiceStatus.NOT_DONE).length;
+  // --- 3. Totais Globais (Otimizado) ---
+  const totals = useMemo(() => {
+    return {
+      value: filteredRecords.reduce((acc, r) => acc + Number(r.calculatedValue), 0),
+      done: filteredRecords.filter(r => r.status === ServiceStatus.DONE).length,
+      notDone: filteredRecords.filter(r => r.status === ServiceStatus.NOT_DONE).length
+    };
+  }, [filteredRecords]);
+
+  const collabOptions = useMemo(() => 
+    collabs.map(c => ({ label: c.name, value: c.id })),
+  [collabs]);
 
   const handleDownload = async () => {
     if (!reportRef.current) return;
     setGenerating(true);
     try {
       const canvas = await html2canvas(reportRef.current, {
-        scale: 3, // Higher quality
+        scale: 3, // Qualidade Alta
         backgroundColor: '#ffffff',
+        useCORS: true, // Importante se tiver imagens externas
       });
+      
       const link = document.createElement('a');
       link.download = `relatorio-${reportType}-${collabName}-${filterValue}.png`;
       link.href = canvas.toDataURL('image/png');
@@ -135,7 +156,7 @@ export const ReportView = () => {
       {/* Controls */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 transition-colors">
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-white">
-          <Search size={20} className="text-primary-600 dark:text-primary-400" /> Filtros do Relatório
+          <Filter size={20} className="text-primary-600 dark:text-primary-400" /> Filtros do Relatório
         </h2>
         <div className="grid md:grid-cols-4 gap-4 items-end">
           <div className="md:col-span-1">
@@ -154,14 +175,12 @@ export const ReportView = () => {
               <button 
                 className={`flex-1 p-2 text-sm flex items-center justify-center gap-1 transition-colors ${reportType === 'detailed' ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200 font-bold' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200'}`}
                 onClick={() => setReportType('detailed')}
-                title="Lista todos os procedimentos"
               >
                 <List size={16} /> Detalhado
               </button>
               <button 
                 className={`flex-1 p-2 text-sm flex items-center justify-center gap-1 transition-colors ${reportType === 'simple' ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200 font-bold' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200'}`}
                 onClick={() => setReportType('simple')}
-                title="Apenas totais por dia"
               >
                 <FileText size={16} /> Simples
               </button>
@@ -174,18 +193,18 @@ export const ReportView = () => {
             </label>
             <div className="flex gap-2">
               <button 
-                 className={`p-2 rounded border transition-colors ${filterType === 'month' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white dark:bg-slate-700 text-slate-500 border-slate-300 dark:border-slate-600'}`}
-                 onClick={() => { setFilterType('month'); setFilterValue(new Date().toISOString().slice(0, 7)); }}
-                 title="Filtrar por Mês"
+                  className={`p-2 rounded border transition-colors ${filterType === 'month' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white dark:bg-slate-700 text-slate-500 border-slate-300 dark:border-slate-600'}`}
+                  onClick={() => { setFilterType('month'); setFilterValue(new Date().toISOString().slice(0, 7)); }}
+                  title="Mês"
               >
-                Mês
+                <Calendar size={18} />
               </button>
               <button 
-                 className={`p-2 rounded border transition-colors ${filterType === 'day' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white dark:bg-slate-700 text-slate-500 border-slate-300 dark:border-slate-600'}`}
-                 onClick={() => { setFilterType('day'); setFilterValue(new Date().toISOString().split('T')[0]); }}
-                 title="Filtrar por Dia"
+                  className={`p-2 rounded border transition-colors ${filterType === 'day' ? 'bg-primary-600 text-white border-primary-600' : 'bg-white dark:bg-slate-700 text-slate-500 border-slate-300 dark:border-slate-600'}`}
+                  onClick={() => { setFilterType('day'); setFilterValue(new Date().toISOString().split('T')[0]); }}
+                  title="Dia"
               >
-                Dia
+                <span className="font-bold text-xs">DIA</span>
               </button>
               <input 
                 type={filterType === 'month' ? 'month' : 'date'}
@@ -202,7 +221,7 @@ export const ReportView = () => {
             className="bg-primary-600 text-white p-2 rounded font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors dark:bg-primary-700 dark:hover:bg-primary-600 h-[42px]"
           >
             <Download size={18} />
-            {generating ? '...' : 'PNG'}
+            {generating ? 'Gerando...' : 'Baixar PNG'}
           </button>
         </div>
       </div>
@@ -217,7 +236,8 @@ export const ReportView = () => {
         </div>
       ) : (
         <div className="overflow-auto bg-slate-200 dark:bg-slate-900 p-4 rounded-lg flex justify-center border border-slate-300 dark:border-slate-700">
-          {/* Printable Area - ALWAYS LIGHT THEME FOR PNG EXPORT */}
+          
+          {/* ÁREA DE IMPRESSÃO - Sempre tema claro para o PNG */}
           <div 
             id="report-content" 
             ref={reportRef}
@@ -231,18 +251,18 @@ export const ReportView = () => {
               </div>
               <div className="text-right">
                 <div className="text-sm text-slate-500">Período de Referência</div>
-                <div className="font-bold text-lg capitalize">
+                <div className="font-bold text-lg capitalize text-slate-800">
                     {filterType === 'month' 
-                      ? new Date(filterValue + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-                      : new Date(filterValue + 'T12:00:00').toLocaleDateString('pt-BR')
+                      ? getSecureDateObject(filterValue + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                      : formatDateString(filterValue)
                     }
                 </div>
               </div>
             </div>
 
-            {/* Table Content Switch */}
+            {/* Tables */}
             {reportType === 'detailed' ? (
-              // DETAILED TABLE
+              // --- TABELA DETALHADA ---
               <table className="w-full text-sm mb-8 border-collapse">
                 <thead>
                   <tr className="border-b-2 border-slate-200 text-left bg-white">
@@ -257,7 +277,10 @@ export const ReportView = () => {
                     <tr className="bg-slate-100">
                       <td colSpan={4} className="py-2 px-3 font-bold text-primary-900 border-l-4 border-primary-500 flex items-center gap-2">
                         <Calendar size={14} />
-                        {new Date(group.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        <span className="capitalize">
+                            {getSecureDateObject(group.date).toLocaleDateString('pt-BR', { weekday: 'long' })}
+                        </span>
+                        <span>- {formatDateString(group.date)}</span>
                       </td>
                     </tr>
                     {group.records.map((rec) => (
@@ -269,12 +292,12 @@ export const ReportView = () => {
                           </span>
                         </td>
                         <td className="py-2 text-xs text-slate-500">
-                          {rec.extras.length > 0 && (
+                          {rec.extras && rec.extras.length > 0 && (
                             <span className="font-semibold text-primary-600 mr-1">[{rec.extras.join(', ')}]</span>
                           )}
                           {rec.notes}
                         </td>
-                        <td className="py-2 pr-2 text-right font-mono text-slate-800">R$ {rec.calculatedValue.toFixed(2)}</td>
+                        <td className="py-2 pr-2 text-right font-mono text-slate-800">R$ {Number(rec.calculatedValue).toFixed(2)}</td>
                       </tr>
                     ))}
                     <tr className="bg-primary-50/50">
@@ -292,7 +315,7 @@ export const ReportView = () => {
                 ))}
               </table>
             ) : (
-              // SIMPLE TABLE (DAILY AGGREGATE)
+              // --- TABELA SIMPLES ---
               <table className="w-full text-sm mb-8 border-collapse">
                 <thead>
                   <tr className="border-b-2 border-slate-200 text-left bg-white">
@@ -304,8 +327,8 @@ export const ReportView = () => {
                 </thead>
                 <tbody>
                   {groupedRecords.map((group) => {
-                    // Aggregate Notes and Extras for the day
-                    const dailyExtras = Array.from(new Set(group.records.flatMap(r => r.extras)));
+                    // Aggregate Notes and Extras
+                    const dailyExtras = Array.from(new Set(group.records.flatMap(r => r.extras || [])));
                     const dailyNotes = group.records.filter(r => r.notes).map(r => r.notes);
                     const hasContent = dailyExtras.length > 0 || dailyNotes.length > 0;
 
@@ -313,10 +336,10 @@ export const ReportView = () => {
                       <tr key={group.date} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-4 pl-2 align-top">
                           <div className="font-bold text-slate-700">
-                            {new Date(group.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                            {formatDateString(group.date)}
                           </div>
                           <div className="text-xs text-slate-400 capitalize">
-                            {new Date(group.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}
+                            {getSecureDateObject(group.date).toLocaleDateString('pt-BR', { weekday: 'long' })}
                           </div>
                         </td>
                         <td className="py-4 align-top">
@@ -369,21 +392,21 @@ export const ReportView = () => {
               </table>
             )}
 
-            {/* Footer Summary (Common for both) */}
+            {/* Footer Summary */}
             <div className="bg-slate-50 border border-slate-200 p-4 rounded-lg">
               <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 border-b border-slate-200 pb-2">Resumo Geral do Período</h3>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="bg-green-50 p-2 rounded border border-green-100">
                   <span className="block text-xs text-green-700 uppercase font-semibold">Procedimentos Feitos</span>
-                  <span className="text-xl font-bold text-green-800">{totalDone}</span>
+                  <span className="text-xl font-bold text-green-800">{totals.done}</span>
                 </div>
                 <div className="bg-red-50 p-2 rounded border border-red-100">
                   <span className="block text-xs text-red-700 uppercase font-semibold">Não Feitos / Cancelados</span>
-                  <span className="text-xl font-bold text-red-800">{totalNotDone}</span>
+                  <span className="text-xl font-bold text-red-800">{totals.notDone}</span>
                 </div>
                 <div className="bg-primary-50 p-2 rounded border border-primary-100">
                   <span className="block text-xs text-primary-700 uppercase font-semibold">Valor Total a Pagar</span>
-                  <span className="text-xl font-bold text-primary-800">R$ {totalValue.toFixed(2)}</span>
+                  <span className="text-xl font-bold text-primary-800">R$ {totals.value.toFixed(2)}</span>
                 </div>
               </div>
             </div>
