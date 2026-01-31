@@ -108,11 +108,11 @@ export const DashboardView = () => {
   const valueByCollab = useMemo(() => {
     const values: Record<string, number> = {};
     monthRecords.forEach(r => {
-      if (r.status === ServiceStatus.DONE) {
+
         const cName = collabs.find(c => c.id === r.collaboratorId)?.name || 'Desc.';
         // Ajuste 2: Number() aqui também
         values[cName] = (values[cName] || 0) + Number(r.calculatedValue);
-      }
+
     });
     return Object.entries(values).sort(([, a], [, b]) => b - a);
   }, [monthRecords, collabs]);
