@@ -68,4 +68,4 @@ export interface LoginResponse {
   token: string;
 }
 
-export const EXTRA_OPTIONS = ['Limpeza', 'São Miguel', 'Toalhas', 'Limpeza Alicates'];
+export const EXTRA_OPTIONS = ['Limpeza', 'São Miguel', 'Toalhas', 'Limpeza Alicates','Reunião'];
