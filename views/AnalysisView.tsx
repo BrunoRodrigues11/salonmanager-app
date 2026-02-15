@@ -7,6 +7,14 @@ import { storageService } from '../services/storage';
 import { Collaborator, Procedure, ServiceRecord, ServiceStatus } from '../types';
 import clsx from 'clsx';
 
+// Helper para formatar moeda no padrão BR
+const formatCurrency = (value: number) => {
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  });
+};
+
 // --- HELPER DE DATA (CRÍTICO) ---
 // Retorna YYYY-MM-DD usando o horário local do navegador, não UTC.
 // Evita que o filtro ou o gráfico voltem 1 dia (D-1).
@@ -197,7 +205,7 @@ export const AnalysisView = () => {
         return {
           label: `${d}/${m}`,
           value: val,
-          tooltip: `${d}/${m}: R$ ${val.toFixed(2)}`
+          tooltip: `${d}/${m}: ${formatCurrency(val)}`
         };
       });
   }, [startDate, endDate, doneRecords]);
@@ -216,7 +224,7 @@ export const AnalysisView = () => {
       .map(([name, val]) => ({
         label: name,
         value: val,
-        displayValue: `R$ ${val.toFixed(2)}`
+        displayValue: formatCurrency(val)
       }));
   }, [doneRecords, collabs]);
 
@@ -285,13 +293,13 @@ export const AnalysisView = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
           title="Faturamento Total" 
-          value={`R$ ${totalRevenue.toFixed(2)}`} 
+          value={formatCurrency(totalRevenue)} 
           subtext="No período selecionado"
           icon={DollarSign}
         />
         <StatCard 
           title="Ticket Médio" 
-          value={`R$ ${avgTicket.toFixed(2)}`} 
+          value={formatCurrency(avgTicket)}
           subtext="Por atendimento realizado"
           icon={TrendingUp}
         />

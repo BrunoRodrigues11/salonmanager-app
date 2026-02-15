@@ -7,6 +7,14 @@ import { storageService } from '../services/storage';
 import { Collaborator, Procedure, ServiceRecord, ServiceStatus } from '../types';
 import clsx from 'clsx';
 
+// Helper para formatar moeda no padrão BR
+const formatCurrency = (value: number) => {
+  return value.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  });
+};
+
 // --- HELPERS PARA DATA ---
 // Garante que pegamos o Mês Local do usuário, não o UTC
 const getCurrentMonthISO = () => {
@@ -136,14 +144,14 @@ export const DashboardView = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard 
           title="A Pagar (Fez)" 
-          value={`R$ ${totalValue.toFixed(2)}`} 
+          value={formatCurrency(totalValue)}
           subtext={`${countDone} realizados`}
           icon={DollarSign} 
           colorClass="text-green-600 dark:text-green-400" 
         />
         <KPICard 
           title="Não Realizado" 
-          value={`R$ ${totalLostValue.toFixed(2)}`} 
+          value={formatCurrency(totalLostValue)} 
           subtext={`${countNotDone} cancelados/não feitos`}
           icon={TrendingDown} 
           colorClass="text-red-500 dark:text-red-400" 
@@ -250,7 +258,7 @@ export const DashboardView = () => {
                       </span>
                       {name}
                     </td>
-                    <td className="p-4 text-right font-mono text-slate-700 dark:text-slate-300">R$ {value.toFixed(2)}</td>
+                    <td className="p-4 text-right font-mono text-slate-700 dark:text-slate-300">{formatCurrency(value)}</td>
                     <td className="p-4">
                       <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5">
                         <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${(value / totalValue) * 100}%` }}></div>
