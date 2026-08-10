@@ -56,7 +56,7 @@ export interface ServiceRecord {
   procedureId: string;
   status: ServiceStatus;
   notes?: string;
-  extras: string[]; 
+  extras: string[];
   calculatedValue: number;
   createdAt: string; // Mudado de number para string (ISO date do SQL)
 }
@@ -68,4 +68,4 @@ export interface LoginResponse {
   token: string;
 }
 
-export const EXTRA_OPTIONS = ['Limpeza', 'São Miguel', 'Toalhas', 'Limpeza Alicates','Reunião'];
+export const EXTRA_OPTIONS = ['Limpeza do Salão', 'São Miguel', 'Toalhas', 'Limpeza Alicates/Utensílios', 'Reunião'];
