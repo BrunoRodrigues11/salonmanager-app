@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Lock, ArrowRight, Scissors, Loader2 } from 'lucide-react'; 
-import { storageService } from '../services/storage'; 
+import { Lock, ArrowRight, Scissors, Loader2 } from 'lucide-react';
+import { storageService } from '../services/storage';
 
 interface LoginViewProps {
   onLogin: () => void;
@@ -9,13 +9,13 @@ interface LoginViewProps {
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  
+
   // --- CORREÇÃO: Faltava declarar este estado ---
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Evita submissão vazia
     if (!password.trim()) return;
 
@@ -23,18 +23,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setError(''); // Limpa erros anteriores
 
     try {
-        const success = await storageService.login(password);
-        
-        if (success) {
-            onLogin(); 
-        } else {
-            setError('Código de acesso incorreto.');
-            setPassword('');
-        }
+      const success = await storageService.login(password);
+
+      if (success) {
+        onLogin();
+      } else {
+        setError('Código de acesso incorreto.');
+        setPassword('');
+      }
     } catch (err) {
-        setError('Erro de conexão com o servidor. Tente novamente.');
+      setError('Erro de conexão com o servidor. Tente novamente.');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -48,7 +48,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           <h1 className="text-2xl font-bold text-white">SalonManager Pro</h1>
           <p className="text-primary-100 mt-2 text-sm">Sistema de Gestão de Procedimentos</p>
         </div>
-        
+
         <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -99,7 +99,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
           <div className="mt-6 text-center">
             <p className="text-xs text-slate-400 dark:text-slate-500">
-             Versão: <strong>1.0.1</strong>
+              Versão: <strong>1.0.2 prod</strong>
             </p>
           </div>
         </div>
