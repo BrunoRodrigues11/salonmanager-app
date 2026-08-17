@@ -6,16 +6,18 @@ import { DashboardView } from './views/DashboardView';
 import { ReportView } from './views/ReportViews';
 import { AnalysisView } from './views/AnalysisView';
 import { LoginView } from './views/LoginView';
-import { storageService } from './services/storage'; 
+import { storageService } from './services/storage';
 import { themeService } from './services/theme';
+import { ServiceRecord } from './types';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isLoaded, setIsLoaded] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<ServiceRecord | null>(null);
 
-  useEffect(() => {  
+  useEffect(() => {
     // Load theme (Dark Mode)
     const savedTheme = storageService.getTheme();
     setIsDarkMode(savedTheme === 'dark');
@@ -39,7 +41,7 @@ export default function App() {
     const newTheme = !isDarkMode;
     setIsDarkMode(newTheme);
     storageService.saveTheme(newTheme ? 'dark' : 'light');
-    
+
     if (newTheme) {
       document.documentElement.classList.add('dark');
     } else {
@@ -77,9 +79,30 @@ export default function App() {
       case 'analysis':
         return <AnalysisView />;
       case 'entry':
-        return <ServiceEntryView />;
+        // 3. Passe as props para a tela de lançamento
+        return (
+          <ServiceEntryView
+            editingRecord={editingRecord}
+            onComplete={() => {
+              setEditingRecord(null); // Limpa ao terminar
+              setActiveTab('history'); // Volta pro histórico
+            }}
+            onCancel={() => {
+              setEditingRecord(null);
+              setActiveTab('history');
+            }}
+          />
+        );
       case 'history':
-        return <HistoryView />;
+        // 4. Passe a prop de onEdit para o histórico
+        return (
+          <HistoryView
+            onEdit={(record) => {
+              setEditingRecord(record);
+              setActiveTab('entry'); // Joga o usuário pra tela de lançamento
+            }}
+          />
+        );
       case 'reports':
         return <ReportView />;
       case 'collaborators':
@@ -94,10 +117,10 @@ export default function App() {
   };
 
   return (
-    <Layout 
-      activeTab={activeTab} 
-      onChangeTab={setActiveTab} 
-      isDarkMode={isDarkMode} 
+    <Layout
+      activeTab={activeTab}
+      onChangeTab={setActiveTab}
+      isDarkMode={isDarkMode}
       toggleTheme={toggleTheme}
       onLogout={handleLogout}
     >

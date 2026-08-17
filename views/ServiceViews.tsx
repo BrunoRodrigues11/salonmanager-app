@@ -1,18 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Calendar, CheckCircle, XCircle, Search, ClipboardX, X } from 'lucide-react';
-import { 
-  Collaborator, Procedure, PriceConfig, ServiceRecord, ServiceStatus, EXTRA_OPTIONS 
+import { Plus, Trash2, Calendar, CheckCircle, XCircle, Search, ClipboardX, X, Pencil } from 'lucide-react';
+import {
+  Collaborator, Procedure, PriceConfig, ServiceRecord, ServiceStatus, EXTRA_OPTIONS
 } from '../types';
 import { storageService } from '../services/storage';
 import { SearchSelect } from '../components/ui/SearchSelect';
 import clsx from 'clsx';
 
 const formatDateSimple = (dateStr: string) => {
-    if (!dateStr) return '-';
-    const [year, month, day] = dateStr.split('T')[0].split('-');
-    return `${day}/${month}/${year}`; // Apenas Dia/Mês para economizar espaço
+  if (!dateStr) return '-';
+  const [year, month, day] = dateStr.split('T')[0].split('-');
+  return `${day}/${month}/${year}`; // Apenas Dia/Mês para economizar espaço
 };
 
+interface ServiceEntryViewProps {
+  editingRecord?: ServiceRecord | null;
+  onComplete?: () => void;
+  onCancel?: () => void;
+}
 // Defina aqui as mesmas exceções do Backend para a estimativa visual bater
 const FREE_EXTRAS = ['São Miguel'];
 
@@ -20,7 +25,7 @@ function formatDateBR(date: string | Date) {
   return new Date(date).toLocaleDateString('pt-BR');
 }
 
-export const ServiceEntryView = () => {
+export const ServiceEntryView = ({ editingRecord, onComplete, onCancel }: ServiceEntryViewProps) => {
   const [collabs, setCollabs] = useState<Collaborator[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [prices, setPrices] = useState<PriceConfig[]>([]);
@@ -33,7 +38,27 @@ export const ServiceEntryView = () => {
   const [status, setStatus] = useState<ServiceStatus>(ServiceStatus.DONE);
   const [extras, setExtras] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
-  
+
+  useEffect(() => {
+    if (editingRecord) {
+      // Pega só o YYYY-MM-DD caso a data venha com hora do banco
+      setDate(editingRecord.date.split('T')[0]);
+      setSelectedCollab(editingRecord.collaboratorId);
+      setSelectedProc(editingRecord.procedureId);
+      setStatus(editingRecord.status);
+      setExtras(editingRecord.extras || []);
+      setNotes(editingRecord.notes || '');
+    } else {
+      // Resetar form caso o usuário clique direto no menu "Novo Lançamento"
+      setDate(new Date().toISOString().split('T')[0]);
+      setSelectedCollab('');
+      setSelectedProc('');
+      setStatus(ServiceStatus.DONE);
+      setExtras([]);
+      setNotes('');
+    }
+  }, [editingRecord]);
+
   // O calculatedValue (State) foi removido. Agora usamos apenas uma variável derivada para visualização.
 
   useEffect(() => {
@@ -62,42 +87,42 @@ export const ServiceEntryView = () => {
     if (!selectedCollab) return [];
     const collab = collabs.find(c => c.id === selectedCollab);
     if (!collab) return [];
-    
-    if (!collab.allowedProcedureIds || collab.allowedProcedureIds.length === 0) 
-        return procedures.filter(p => p.active);
+
+    if (!collab.allowedProcedureIds || collab.allowedProcedureIds.length === 0)
+      return procedures.filter(p => p.active);
 
     return procedures
       .filter(p => collab.allowedProcedureIds?.includes(p.id))
       .filter(p => p.active);
   }, [selectedCollab, collabs, procedures]);
 
-  const collabOptions = useMemo(() => 
+  const collabOptions = useMemo(() =>
     collabs.filter(c => c.active).map(c => ({ label: c.name, value: c.id, subLabel: c.role })),
-  [collabs]);
+    [collabs]);
 
-  const procedureOptions = useMemo(() => 
+  const procedureOptions = useMemo(() =>
     availableProcedures.map(p => ({ label: p.name, value: p.id, subLabel: p.category })),
-  [availableProcedures]);
+    [availableProcedures]);
 
   // --- CÁLCULO VISUAL (ESTIMATIVA) ---
   // Replica a lógica do backend apenas para o usuário ter noção do valor
   const estimatedValue = useMemo(() => {
     if (!selectedProc) return 0;
-    
+
     const priceConfig = prices.find(p => p.procedureId === selectedProc);
     if (!priceConfig) return 0;
 
-    let val = status === ServiceStatus.DONE 
-        ? Number(priceConfig.valueDone) 
-        : Number(priceConfig.valueNotDone);
+    let val = status === ServiceStatus.DONE
+      ? Number(priceConfig.valueDone)
+      : Number(priceConfig.valueNotDone);
 
     if (extras.length > 0) {
-       // Filtra visualmente os itens gratuitos para a estimativa ficar correta
-       const payableExtras = extras.filter(e => !FREE_EXTRAS.includes(e));
-       // Multiplica pela quantidade
-       val += (Number(priceConfig.valueAdditional) * payableExtras.length);
+      // Filtra visualmente os itens gratuitos para a estimativa ficar correta
+      const payableExtras = extras.filter(e => !FREE_EXTRAS.includes(e));
+      // Multiplica pela quantidade
+      val += (Number(priceConfig.valueAdditional) * payableExtras.length);
     }
-    
+
     return val;
   }, [selectedProc, status, extras, prices]);
 
@@ -107,23 +132,36 @@ export const ServiceEntryView = () => {
 
     setLoading(true);
     try {
-      await storageService.createRecord({
+      const payload = {
         date,
         collaboratorId: selectedCollab,
         procedureId: selectedProc,
         status,
         extras,
         notes,
-      });
+      };
 
-      // Reset do formulário
-      setSelectedProc('');
-      setExtras([]);
-      setNotes('');
-      setStatus(ServiceStatus.DONE);
-      alert("Lançamento salvo com sucesso!");
+      if (editingRecord) {
+        // Modo Edição (PUT)
+        await storageService.updateRecord(editingRecord.id, payload);
+        alert("Lançamento atualizado com sucesso!");
+      } else {
+        // Modo Criação (POST)
+        await storageService.createRecord(payload);
+        alert("Lançamento salvo com sucesso!");
+      }
+
+      // Se tiver a prop de callback (veio do App.tsx), executa ela
+      if (onComplete) {
+        onComplete();
+      } else {
+        // Senão, só limpa o form (fluxo normal de criação)
+        setSelectedProc('');
+        setExtras([]);
+        setNotes('');
+        setStatus(ServiceStatus.DONE);
+      }
     } catch (err: any) {
-      // Se o backend retornar erro de regra de negócio (ex: preço não configurado), mostramos aqui
       const msg = err.message || "Erro ao salvar lançamento.";
       alert(msg);
     } finally {
@@ -137,15 +175,24 @@ export const ServiceEntryView = () => {
     <div className="max-w-2xl mx-auto">
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-primary-100 dark:border-slate-700 p-6 transition-colors">
         <h2 className="text-xl font-bold text-primary-900 dark:text-primary-300 mb-6 flex items-center gap-2">
-          <Plus className="bg-primary-100 dark:bg-primary-900/50 p-1 rounded-full text-primary-600 dark:text-primary-400" size={24} />
-          Novo Lançamento
+          {editingRecord ? (
+            <>
+              <Pencil className="bg-primary-100 dark:bg-primary-900/50 p-1 rounded-full text-primary-600 dark:text-primary-400" size={24} />
+              Editar Lançamento
+            </>
+          ) : (
+            <>
+              <Plus className="bg-primary-100 dark:bg-primary-900/50 p-1 rounded-full text-primary-600 dark:text-primary-400" size={24} />
+              Novo Lançamento
+            </>
+          )}
         </h2>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Data</label>
-            <input 
-              type="date" 
+            <input
+              type="date"
               required
               className="w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500 p-2.5"
               value={date}
@@ -182,8 +229,8 @@ export const ServiceEntryView = () => {
           <div className="grid grid-cols-2 gap-4">
             <label className={clsx(
               "border rounded-lg p-3 cursor-pointer text-center transition-all",
-              status === ServiceStatus.DONE 
-                ? "bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-400 font-bold" 
+              status === ServiceStatus.DONE
+                ? "bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-400 font-bold"
                 : "bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 dark:border-slate-600"
             )}>
               <input type="radio" className="hidden" name="status" checked={status === ServiceStatus.DONE} onChange={() => setStatus(ServiceStatus.DONE)} />
@@ -191,8 +238,8 @@ export const ServiceEntryView = () => {
             </label>
             <label className={clsx(
               "border rounded-lg p-3 cursor-pointer text-center transition-all",
-              status === ServiceStatus.NOT_DONE 
-                ? "bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-400 font-bold" 
+              status === ServiceStatus.NOT_DONE
+                ? "bg-red-50 dark:bg-red-900/20 border-red-500 text-red-700 dark:text-red-400 font-bold"
                 : "bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 dark:border-slate-600"
             )}>
               <input type="radio" className="hidden" name="status" checked={status === ServiceStatus.NOT_DONE} onChange={() => setStatus(ServiceStatus.NOT_DONE)} />
@@ -205,7 +252,7 @@ export const ServiceEntryView = () => {
             <div className="space-y-2">
               {EXTRA_OPTIONS.map(opt => (
                 <label key={opt} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 cursor-pointer">
-                  <input 
+                  <input
                     type="checkbox"
                     className="rounded text-primary-600 focus:ring-primary-500 dark:bg-slate-700 dark:border-slate-500"
                     checked={extras.includes(opt)}
@@ -221,7 +268,7 @@ export const ServiceEntryView = () => {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Observações</label>
-            <textarea 
+            <textarea
               className="w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-lg shadow-sm focus:ring-primary-500 focus:border-primary-500 text-sm p-2.5"
               rows={2}
               value={notes}
@@ -234,9 +281,25 @@ export const ServiceEntryView = () => {
             <div className="text-3xl font-bold text-slate-900 dark:text-white">R$ {estimatedValue.toFixed(2)}</div>
           </div>
 
-          <button type="submit" disabled={loading} className="w-full bg-primary-600 dark:bg-primary-700 text-white py-3 rounded-lg font-bold hover:bg-primary-700 dark:hover:bg-primary-600 shadow-md transition-colors disabled:opacity-50">
-            {loading ? 'Salvando...' : 'Confirmar Lançamento'}
-          </button>
+          <div className="flex gap-4">
+            {editingRecord && (
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={loading}
+                className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 py-3 rounded-lg font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+              >
+                Cancelar
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 bg-primary-600 dark:bg-primary-700 text-white py-3 rounded-lg font-bold hover:bg-primary-700 dark:hover:bg-primary-600 shadow-md transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Salvando...' : (editingRecord ? 'Atualizar Lançamento' : 'Confirmar Lançamento')}
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -246,23 +309,23 @@ export const ServiceEntryView = () => {
 // ... RecordDetailModal ... 
 const RecordDetailModal = ({ record, onClose, onDelete, getCollabName, getProcName }: any) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-xl shadow-2xl p-6 border border-slate-200 dark:border-slate-700">
-         <div className="flex justify-between mb-4">
-            <h3 className="font-bold text-lg dark:text-white">Detalhes</h3>
-            <button onClick={onClose}><X /></button>
-         </div>
-         <p className="dark:text-slate-300">Colaboradora: {getCollabName(record.collaboratorId)}</p>
-         <p className="dark:text-slate-300">Procedimento: {getProcName(record.procedureId)}</p>
-         <p className="dark:text-slate-300">Valor Final: R$ {Number(record.calculatedValue).toFixed(2)}</p>
-         <div className="mt-4 flex justify-end">
-            <button onClick={() => { onDelete(record.id); onClose(); }} className="text-red-500 flex gap-2"><Trash2 size={16}/> Excluir</button>
-         </div>
+    <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-xl shadow-2xl p-6 border border-slate-200 dark:border-slate-700">
+      <div className="flex justify-between mb-4">
+        <h3 className="font-bold text-lg dark:text-white">Detalhes</h3>
+        <button onClick={onClose}><X /></button>
       </div>
+      <p className="dark:text-slate-300">Colaboradora: {getCollabName(record.collaboratorId)}</p>
+      <p className="dark:text-slate-300">Procedimento: {getProcName(record.procedureId)}</p>
+      <p className="dark:text-slate-300">Valor Final: R$ {Number(record.calculatedValue).toFixed(2)}</p>
+      <div className="mt-4 flex justify-end">
+        <button onClick={() => { onDelete(record.id); onClose(); }} className="text-red-500 flex gap-2"><Trash2 size={16} /> Excluir</button>
+      </div>
+    </div>
   </div>
 );
 
 // ... HistoryView ...
-export const HistoryView = () => {
+export const HistoryView = ({ onEdit }: { onEdit: (record: ServiceRecord) => void }) => {
   const [records, setRecords] = useState<ServiceRecord[]>([]);
   const [collabs, setCollabs] = useState<Collaborator[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
@@ -273,23 +336,23 @@ export const HistoryView = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-        const [r, c, p] = await Promise.all([
+      const [r, c, p] = await Promise.all([
         storageService.getRecords(),
         storageService.getCollaborators(),
         storageService.getProcedures()
-        ]);
-        setRecords(r);
-        setCollabs(c);
-        setProcedures(p);
+      ]);
+      setRecords(r);
+      setCollabs(c);
+      setProcedures(p);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => { loadData(); }, []);
 
   const deleteRecord = async (id: string) => {
-    if(!confirm('Excluir este lançamento?')) return;
+    if (!confirm('Excluir este lançamento?')) return;
     await storageService.deleteRecord(id);
     loadData();
   };
@@ -310,26 +373,23 @@ export const HistoryView = () => {
 
   return (
     <div className="space-y-6">
-      {/* ... (O restante do layout do HistoryView permanece idêntico, 
-              apenas certifique-se de usar Number(rec.calculatedValue).toFixed(2) 
-              caso o backend retorne string) ... */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          <Calendar className="text-primary-600 dark:text-primary-400" size={28} /> 
+          <Calendar className="text-primary-600 dark:text-primary-400" size={28} />
           Histórico de Procedimentos
         </h2>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500" size={18} />
-          <input 
-            type="text" 
-            placeholder="Buscar..." 
+          <input
+            type="text"
+            placeholder="Buscar..."
             className="w-full pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 bg-white dark:bg-slate-800 p-2 text-slate-900 dark:text-slate-100"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
-      
+
       {filteredRecords.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 bg-slate-50 dark:bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-center animate-fade-in">
           <div className="bg-white dark:bg-slate-700 p-4 rounded-full mb-4 shadow-sm">
@@ -342,8 +402,8 @@ export const HistoryView = () => {
       ) : (
         <div className="space-y-3">
           {filteredRecords.map(rec => (
-            <div 
-              key={rec.id} 
+            <div
+              key={rec.id}
               onClick={() => setViewingRecord(rec)}
               className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-primary-300 dark:hover:border-primary-500 transition-all cursor-pointer hover:shadow-md"
             >
@@ -357,10 +417,10 @@ export const HistoryView = () => {
                 </div>
                 <h3 className="font-bold text-lg text-slate-900 dark:text-white">{getProcName(rec.procedureId)}</h3>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <span className={clsx("text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1", 
+                  <span className={clsx("text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1",
                     rec.status === ServiceStatus.DONE ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
                   )}>
-                    {rec.status === ServiceStatus.DONE ? <CheckCircle size={12}/> : <XCircle size={12}/>}
+                    {rec.status === ServiceStatus.DONE ? <CheckCircle size={12} /> : <XCircle size={12} />}
                     {rec.status}
                   </span>
                 </div>
@@ -371,9 +431,19 @@ export const HistoryView = () => {
                   {/* Garante que converte para Number antes de toFixed, caso venha string do back */}
                   <div className="font-bold text-lg text-slate-800 dark:text-white">R$ {Number(rec.calculatedValue).toFixed(2)}</div>
                 </div>
-                <button 
+                <button
                   onClick={(e) => {
-                    e.stopPropagation(); 
+                    e.stopPropagation();
+                    onEdit(rec);
+                  }}
+                  className="p-2 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
+                  title="Editar"
+                >
+                  <Pencil size={18} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
                     deleteRecord(rec.id);
                   }}
                   className="p-2 text-slate-400 hover:text-red-600"
@@ -387,9 +457,9 @@ export const HistoryView = () => {
       )}
 
       {viewingRecord && (
-        <RecordDetailModal 
-          record={viewingRecord} 
-          onClose={() => setViewingRecord(null)} 
+        <RecordDetailModal
+          record={viewingRecord}
+          onClose={() => setViewingRecord(null)}
           onDelete={deleteRecord}
           getCollabName={getCollabName}
           getProcName={getProcName}
