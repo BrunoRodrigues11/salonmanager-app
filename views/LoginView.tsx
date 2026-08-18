@@ -99,7 +99,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
           <div className="mt-6 text-center">
             <p className="text-xs text-slate-400 dark:text-slate-500">
-              Versão: <strong>1.0.2 prod</strong>
+              Versão: <strong>1.0.2 {import.meta.env.DEV ? 'local' : 'prod'}</strong>
             </p>
           </div>
         </div>
