@@ -152,14 +152,19 @@ export const ServiceEntryView = ({ editingRecord, onComplete, onCancel }: Servic
       }
 
       // Se tiver a prop de callback (veio do App.tsx), executa ela
-      if (onComplete) {
+      // Agora ele só chama o onComplete (que redireciona) SE for edição
+      if (editingRecord && onComplete) {
         onComplete();
       } else {
-        // Senão, só limpa o form (fluxo normal de criação)
+        // Se for um NOVO lançamento, ele apenas limpa os campos para o próximo
         setSelectedProc('');
         setExtras([]);
         setNotes('');
         setStatus(ServiceStatus.DONE);
+
+        // (Opcional) Se quiser, você pode fazer a data e colaboradora também
+        // voltarem ao padrão aqui, mas geralmente é bom manter a mesma colaboradora
+        // selecionada caso ela vá lançar 5 serviços seguidos.
       }
     } catch (err: any) {
       const msg = err.message || "Erro ao salvar lançamento.";
